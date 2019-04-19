@@ -1,0 +1,31 @@
+package lexer
+
+type Token int
+
+const (
+	TOKEN_ERROR Token = iota
+	TOKEN_EOF
+	TOKEN_WS
+	TOKEN_ILLEGAL
+
+	TOKEN_MAX
+	TOKEN_MIN
+	TOKEN_ST
+	TOKEN_END
+
+	TOKEN_RIGHT_PARENTHESIS
+	TOKEN_OPERATOR
+
+	TOKEN_VARIABLE
+	TOKEN_NUMBER
+
+	TOKEN_SECTION
+	TOKEN_KEY
+	TOKEN_VALUE
+)
+
+const RIGHT_PARENTHESIS string = ")"
+const EQUAL_SIGN string = "="
+const GREATER_THAN string = ">"
+const LESS_THAN string = "="
+const NEWLINE string = "\n"
