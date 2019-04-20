@@ -1,4 +1,4 @@
-package lexer
+package ltxparser
 
 type Token int
 
@@ -15,6 +15,7 @@ const (
 
 	TOKEN_RIGHT_PARENTHESIS
 	TOKEN_OPERATOR
+	TOKEN_SIGN_OPERATOR
 
 	TOKEN_VARIABLE
 	TOKEN_NUMBER

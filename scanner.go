@@ -1,4 +1,4 @@
-package lexer
+package ltxparser
 
 import (
 	"bufio"
@@ -31,9 +31,12 @@ func (s *Scanner) Scan() (tok Token, lit string) {
 	} else if isLetter(ch) {
 		s.unread()
 		return s.scanIdent()
-	} else if isDigit(ch) {
+	} else if isDigitOrDot(ch) {
 		s.unread()
 		return s.scanNumber()
+	} else if isOperator(ch) {
+		s.unread()
+		return s.scanOperator()
 	}
 
 	// Otherwise read the individual character.
@@ -41,8 +44,8 @@ func (s *Scanner) Scan() (tok Token, lit string) {
 	switch ch {
 	case eof:
 		return TOKEN_EOF, ""
-	case '<', '>', '=':
-		return TOKEN_OPERATOR, string(ch)
+	case '+', '-':
+		return TOKEN_SIGN_OPERATOR, string(ch)
 	}
 	return TOKEN_ILLEGAL, string(ch)
 }
@@ -56,7 +59,7 @@ func (s *Scanner) scanNumber() (tok Token, lit string) {
 	for {
 		if ch := s.read(); ch == eof {
 			break
-		} else if isDigit(ch) && ch != '.' && ch != ',' { //HANDLE COMMA ON PARSING
+		} else if !isDigit(ch) && ch != '.' {
 			s.unread()
 			break
 		} else {
@@ -66,6 +69,30 @@ func (s *Scanner) scanNumber() (tok Token, lit string) {
 
 	// Otherwise return as a regular identifier.
 	return TOKEN_NUMBER, buf.String()
+}
+
+func (s *Scanner) scanOperator() (tok Token, lit string) {
+	var buf bytes.Buffer
+	buf.WriteRune(s.read())
+
+	// Read every subsequent relational operator caractere.
+	for {
+		if ch := s.read(); ch == eof {
+			break
+		} else if !isOperator(ch) {
+			s.unread()
+			break
+		} else {
+			_, _ = buf.WriteRune(ch)
+		}
+	}
+	switch buf.String() {
+	case "<=", "<", ">=", ">", "=":
+		return TOKEN_OPERATOR, buf.String()
+
+	}
+	// Otherwise return as a regular identifier.
+	return TOKEN_ILLEGAL, buf.String()
 }
 
 // scanWhitespace consumes the current rune and all contiguous whitespace
@@ -100,7 +127,7 @@ func (s *Scanner) scanIdent() (tok Token, lit string) {
 	for {
 		if ch := s.read(); ch == eof {
 			break
-		} else if !isLetter(ch) && /*!isDigit(ch) &&*/ ch != '_' {
+		} else if !isLetter(ch) && !isDigit(ch) && ch != '.' {
 			s.unread()
 			break
 		} else {
@@ -114,13 +141,13 @@ func (s *Scanner) scanIdent() (tok Token, lit string) {
 		return TOKEN_MAX, buf.String()
 	case "MIN", "MINIMIZE", "MINIMISE":
 		return TOKEN_MIN, buf.String()
-	//TODO: HANDLE 2 SEPARATE WORDS AS KEYWORDS LIKE "SUBJECT TO"
-	case "ST":
+	case "ST", "SUBJECT", "TO", "SUCH", "THAT", "S.T.":
 		return TOKEN_ST, buf.String()
+	case "END":
+		return TOKEN_END, buf.String()
 	}
-
-	// Otherwise return as a regular identifier.
-	return TOKEN_VARIABLE, buf.String()
+	// Otherwise return as a regular identifier with its constraints (no dots inside variables)
+	return TOKEN_VARIABLE, strings.Replace(buf.String(), ".", "", -1)
 }
 
 // read reads the next rune from the buffered reader.
@@ -142,11 +169,14 @@ func isWhitespace(ch rune) bool { return ch == ' ' || ch == '\t' || ch == '\n' }
 // isLetter returns true if the rune is a letter.
 func isLetter(ch rune) bool { return (ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') }
 
-// is Operator returns true if rune is an operator of addition or subtraction (+ or -)
-func isOperator(ch rune) bool { return (ch == '-' || ch == '+') }
+// isOperator returns true if the rune is a relational operator.
+func isOperator(ch rune) bool { return (ch == '<' || ch == '=' || ch == '>') }
 
 // isDigit returns true if the rune is a digit.
 func isDigit(ch rune) bool { return (ch >= '0' && ch <= '9') }
+
+// isDigit returns true if the rune is a digit.
+func isDigitOrDot(ch rune) bool { return (ch >= '0' && ch <= '9') || ch == '.' }
 
 // eof represents a marker rune for the end of the reader.
 var eof = rune(0)

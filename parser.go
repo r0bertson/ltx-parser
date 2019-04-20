@@ -1,4 +1,4 @@
-package lexer
+package ltxparser
 
 import (
 	"fmt"
@@ -12,20 +12,24 @@ type LinearProblem struct {
 	Constraints       []Constraint
 }
 
+// OF represents an objective function
 type OF struct {
 	OFType    string
-	variables []Variable
-}
-type Constraint struct {
-	name     string
-	LH       []Variable
-	Operator string
-	RH       Variable
+	Variables []Variable
 }
 
+//Constraint represent an LP constraint
+type Constraint struct {
+	Name     string
+	LH       []Variable
+	Operator string
+	RH       float64
+}
+
+//Variable holds the variable name and its coefficient
 type Variable struct {
-	name        string
-	coefficient float64
+	Name        string
+	Coefficient float64
 }
 
 // Parser represents a parser.
@@ -43,7 +47,7 @@ func NewParser(r io.Reader) *Parser {
 	return &Parser{s: NewScanner(r)}
 }
 
-// Parse parses a SQL SELECT statement.
+// Parse parses a LINDO's text file Linear Problem.
 func (p *Parser) Parse() (*LinearProblem, error) {
 	lp := &LinearProblem{}
 
@@ -52,19 +56,26 @@ func (p *Parser) Parse() (*LinearProblem, error) {
 	if tok != TOKEN_MAX && tok != TOKEN_MIN {
 		return nil, fmt.Errorf("found %q, expected MAX or MIN", lit)
 	}
-	lp.ObjectiveFunction.OFType = lit
+	lp.ObjectiveFunction.OFType = handleOFType(lit)
 	// Next we should loop over the objective function.
 	for {
 		tok, lit := p.scanIgnoreWhitespace()
-		if tok != TOKEN_VARIABLE && tok != TOKEN_NUMBER {
-			return nil, fmt.Errorf("found %q, expected coefficient or variable", lit)
+		if tok != TOKEN_VARIABLE && tok != TOKEN_NUMBER && tok != TOKEN_SIGN_OPERATOR {
+			return nil, fmt.Errorf("found %q, expected sign operator, coefficient or variable", lit)
 		}
+		//IF THERE IS AN EXPLICIT SIGN
+		var sign = "+"
+		if tok == TOKEN_SIGN_OPERATOR {
+			sign = lit
+			tok, lit = p.scanIgnoreWhitespace()
+		}
+
 		if tok == TOKEN_VARIABLE {
-			lp.ObjectiveFunction.variables = append(lp.ObjectiveFunction.variables, Variable{lit, 1.0})
+			lp.ObjectiveFunction.Variables = append(lp.ObjectiveFunction.Variables, Variable{lit, handleSign(sign)})
 		} else if tok == TOKEN_NUMBER {
 			var temp Variable
-			if num, err := strconv.ParseFloat(lit, 64); err != nil {
-				temp.coefficient = num
+			if num, err := strconv.ParseFloat(sign+lit, 64); err == nil {
+				temp.Coefficient = num
 			} else {
 				return nil, fmt.Errorf("Error converting %q to float", lit)
 			}
@@ -72,82 +83,110 @@ func (p *Parser) Parse() (*LinearProblem, error) {
 			tok, lit := p.scanIgnoreWhitespace()
 
 			if tok == TOKEN_VARIABLE {
-				temp.name = lit
+				temp.Name = lit
 				//append only variables, because constants do not affect the optimal solution
-				lp.ObjectiveFunction.variables = append(lp.ObjectiveFunction.variables, temp)
+				lp.ObjectiveFunction.Variables = append(lp.ObjectiveFunction.Variables, temp)
 			} else {
 				p.unscan()
 			}
-
+		} else {
+			return nil, fmt.Errorf("found %q, expected coefficient or variable", lit)
 		}
 
-		// If the next token is ST, BREAK THE LOOP.
-		if tok, _ := p.scanIgnoreWhitespace(); tok != TOKEN_NUMBER && tok != TOKEN_VARIABLE {
+		// If the next token is not a sign operator, breaks loop.
+		if tok, _ := p.scanIgnoreWhitespace(); tok != TOKEN_SIGN_OPERATOR {
 			p.unscan()
 			break
 		}
+		p.unscan()
 	}
 
-	//CHECK ST TOKEN
+	// Check if exists a ST token
 	if tok, lit := p.scanIgnoreWhitespace(); tok != TOKEN_ST {
 		return nil, fmt.Errorf("found %q, expected ST/SUBJECT TO/... ", lit)
+	} else {
+		// Handles compound keywords (SUBJECT TO and SUCH THAT)
+		if lit == "SUBJECT" {
+			if tok, lit := p.scanIgnoreWhitespace(); tok != TOKEN_ST || lit != "TO" {
+				return nil, fmt.Errorf("found %q, expected TO ", lit)
+			}
+		} else if lit == "SUCH" {
+			if tok, lit := p.scanIgnoreWhitespace(); tok != TOKEN_ST || lit != "THAT" {
+				return nil, fmt.Errorf("found %q, expected THAT ", lit)
+			}
+		}
 	}
 	// Next we should loop over the constraints.
 	for {
-		//loop the variables on the left hand sideo of the equation
+		var cons Constraint
+		// Loop through variables on the left hand side of the equation
 		for {
 			tok, lit := p.scanIgnoreWhitespace()
-			var cons Constraint
-			if tok != TOKEN_VARIABLE && tok != TOKEN_NUMBER {
-				return nil, fmt.Errorf("found %q, expected coefficient or variable", lit)
+
+			if tok != TOKEN_VARIABLE && tok != TOKEN_NUMBER && tok != TOKEN_SIGN_OPERATOR {
+				return nil, fmt.Errorf("found %q, expected sign operator, coefficient or variable", lit)
 			}
-			if tok == TOKEN_VARIABLE {
-				cons.LH = append(cons.LH, Variable{lit, 1.0})
-			} else if tok == TOKEN_NUMBER {
+			// Handle explicit sign operator
+			var sign = "+"
+			if tok == TOKEN_SIGN_OPERATOR {
+				sign = lit
+				tok, lit = p.scanIgnoreWhitespace()
+			}
+
+			if tok == TOKEN_VARIABLE { // No explicit coefficient
+				cons.LH = append(cons.LH, Variable{lit, handleSign(sign)})
+			} else if tok == TOKEN_NUMBER { // Handle explicit coefficient
 				var temp Variable
-				if num, err := strconv.ParseFloat(lit, 64); err != nil {
-					temp.coefficient = num
+				if num, err := strconv.ParseFloat(sign+lit, 64); err == nil {
+					temp.Coefficient = num
 				} else {
 					return nil, fmt.Errorf("Error converting %q to float", lit)
 				}
 
 				tok, lit := p.scanIgnoreWhitespace()
 				if tok == TOKEN_VARIABLE {
-					temp.name = lit
+					temp.Name = lit
 				} else {
 					return nil, fmt.Errorf("found constant %q on the lefthand side of a constraint", lit)
-					p.unscan()
 				}
 				cons.LH = append(cons.LH, temp)
-				// If the next token is not a number of variable.
-				if tok, _ := p.scanIgnoreWhitespace(); tok != TOKEN_NUMBER && tok != TOKEN_VARIABLE {
-					p.unscan()
-					break
-				}
-			}
-			//expects operator
-
-			if tok, lit := p.scanIgnoreWhitespace(); tok == TOKEN_OPERATOR {
-				cons.Operator = lit
 			} else {
-				return nil, fmt.Errorf("found constant %q instead of an operator", lit)
+				return nil, fmt.Errorf("found %q, expected coefficient or variable", lit)
 			}
+			// If the next token is not a sign operator, breaks the loop.
+			if tok, _ := p.scanIgnoreWhitespace(); tok != TOKEN_SIGN_OPERATOR {
+				p.unscan()
+				break
+			}
+			p.unscan()
+		}
 
-			//right hand side of the equation must be a constant
+		// Expects operator splitting LH and RH
 
-			if tok, lit := p.scanIgnoreWhitespace(); tok == TOKEN_NUMBER {
-				lp.Constraints = append(lp.Constraints, cons)
+		if tok, lit := p.scanIgnoreWhitespace(); tok == TOKEN_OPERATOR {
+			cons.Operator = lit
+		} else {
+			return nil, fmt.Errorf("found constant %q instead of an operator", lit)
+		}
+
+		//Right hand side of the equation must be a constant
+		if tok, lit := p.scanIgnoreWhitespace(); tok == TOKEN_NUMBER {
+			if num, err := strconv.ParseFloat(lit, 64); err == nil {
+				cons.RH = num
 			} else {
-				return nil, fmt.Errorf("found %q instead of a constant", lit)
+				return nil, fmt.Errorf("Error converting %q to float", lit)
 			}
-
+			lp.Constraints = append(lp.Constraints, cons)
+		} else {
+			return nil, fmt.Errorf("found %q instead of a constant", lit)
 		}
 
 		// If the next token is END, BREAK THE LOOP.
-		if tok, _ := p.scanIgnoreWhitespace(); tok != TOKEN_NUMBER && tok != TOKEN_VARIABLE {
+		if tok, _ := p.scanIgnoreWhitespace(); tok != TOKEN_NUMBER && tok != TOKEN_VARIABLE && tok != TOKEN_SIGN_OPERATOR {
 			p.unscan()
 			break
 		}
+		p.unscan()
 	}
 
 	// Must have END token at the end of the file
@@ -187,3 +226,18 @@ func (p *Parser) scanIgnoreWhitespace() (tok Token, lit string) {
 
 // unscan pushes the previously read token back onto the buffer.
 func (p *Parser) unscan() { p.buf.n = 1 }
+
+// handle sign returns a numeric coefficient based on a variable sign operator
+func handleSign(signal string) float64 {
+	if signal == "-" {
+		return -1.0
+	}
+	return 1.0
+}
+
+func handleOFType(token string) string {
+	if token == "MIN" || token == "MINIMIZE" || token == "MINIMISE" {
+		return "MIN"
+	}
+	return "MAX"
+}
