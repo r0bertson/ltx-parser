@@ -20,7 +20,7 @@ func TestParser_ParseStatement(t *testing.T) {
 			s: `MAX X1 + 2 X2 SUCH THAT X1 + 2 X2 < 6 3 X1 + 2X2 <= 18 END`,
 			lp: &ltx.LinearProblem{
 				ObjectiveFunction: ltx.OF{OFType: "MAX", Variables: []ltx.Variable{{"X1", 1}, {"X2", 2}}},
-				Constraints: []ltx.Constraint{{Name: "", LH: []ltx.Variable{{"X1", 1}, {"X2", 2}}, Operator: "<", RH: 6.0},
+				Constraints: []ltx.Constraint{{Name: "", LH: []ltx.Variable{{"X1", 1}, {"X2", 2}}, Operator: "<=", RH: 6.0},
 					ltx.Constraint{Name: "", LH: []ltx.Variable{{"X1", 3}, {"X2", 2}}, Operator: "<=", RH: 18.0}},
 			},
 			err: "",
@@ -29,7 +29,7 @@ func TestParser_ParseStatement(t *testing.T) {
 			s: `MIN X234Y + 2Y 
 				SUBJECT TO 
 					X234Y + 2Y <= 6 
-					3 X234Y + 2Y >= 18 
+					3 X234Y + 2Y > 18 
 				END`,
 			lp: &ltx.LinearProblem{
 				ObjectiveFunction: ltx.OF{OFType: "MIN", Variables: []ltx.Variable{{"X234Y", 1}, {"Y", 2}}},
@@ -47,7 +47,7 @@ func TestParser_ParseStatement(t *testing.T) {
 			lp: &ltx.LinearProblem{
 				ObjectiveFunction: ltx.OF{OFType: "MAX", Variables: []ltx.Variable{{"X", 1}, {"Y", 2}}},
 				Constraints: []ltx.Constraint{{Name: "", LH: []ltx.Variable{{"X", 3}, {"Y", 1}}, Operator: "=", RH: 6.0},
-					ltx.Constraint{Name: "", LH: []ltx.Variable{{"X", 3}, {"Y", -2}}, Operator: "<", RH: 18.0}},
+					ltx.Constraint{Name: "", LH: []ltx.Variable{{"X", 3}, {"Y", -2}}, Operator: "<=", RH: 18.0}},
 			},
 			err: "",
 		},

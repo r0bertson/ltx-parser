@@ -87,8 +87,12 @@ func (s *Scanner) scanOperator() (tok Token, lit string) {
 		}
 	}
 	switch buf.String() {
-	case "<=", "<", ">=", ">", "=":
+	case "=":
 		return TOKEN_OPERATOR, buf.String()
+	case "<=", "<":
+		return TOKEN_OPERATOR, "<="
+	case ">=", ">":
+		return TOKEN_OPERATOR, ">="
 
 	}
 	// Otherwise return as a regular identifier.

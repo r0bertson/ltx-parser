@@ -47,7 +47,7 @@ func NewParser(r io.Reader) *Parser {
 	return &Parser{s: NewScanner(r)}
 }
 
-// Parse parses a LINDO's text file Linear Problem.
+// Parse parses a LINDO's text file (*.ltx) Linear Problem.
 func (p *Parser) Parse() (*LinearProblem, error) {
 	lp := &LinearProblem{}
 
@@ -227,7 +227,7 @@ func (p *Parser) scanIgnoreWhitespace() (tok Token, lit string) {
 // unscan pushes the previously read token back onto the buffer.
 func (p *Parser) unscan() { p.buf.n = 1 }
 
-// handle sign returns a numeric coefficient based on a variable sign operator
+// handleSign returns a numeric coefficient based on a variable sign operator
 func handleSign(signal string) float64 {
 	if signal == "-" {
 		return -1.0
@@ -235,6 +235,7 @@ func handleSign(signal string) float64 {
 	return 1.0
 }
 
+// handleOFType returns the most concise alias (MIN/MAX) for an objective function type.
 func handleOFType(token string) string {
 	if token == "MIN" || token == "MINIMIZE" || token == "MINIMISE" {
 		return "MIN"
