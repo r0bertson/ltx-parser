@@ -56,7 +56,7 @@ func (p *Parser) Parse() (*LinearProblem, error) {
 	if tok != TOKEN_MAX && tok != TOKEN_MIN {
 		return nil, fmt.Errorf("found %q, expected MAX or MIN", lit)
 	}
-	lp.ObjectiveFunction.OFType = handleOFType(lit)
+	lp.ObjectiveFunction.OFType = handleObjectiveFunctionType(lit)
 	// Next we should loop over the objective function.
 	for {
 		tok, lit := p.scanIgnoreWhitespace()
@@ -71,7 +71,7 @@ func (p *Parser) Parse() (*LinearProblem, error) {
 		}
 
 		if tok == TOKEN_VARIABLE {
-			lp.ObjectiveFunction.Variables = append(lp.ObjectiveFunction.Variables, Variable{lit, handleSign(sign)})
+			lp.ObjectiveFunction.Variables = append(lp.ObjectiveFunction.Variables, Variable{lit, handleSign(sign)}) // place 1 or -1 as coefficient
 		} else if tok == TOKEN_NUMBER {
 			var temp Variable
 			if num, err := strconv.ParseFloat(sign+lit, 64); err == nil {
@@ -105,7 +105,7 @@ func (p *Parser) Parse() (*LinearProblem, error) {
 	if tok, lit := p.scanIgnoreWhitespace(); tok != TOKEN_ST {
 		return nil, fmt.Errorf("found %q, expected ST/SUBJECT TO/... ", lit)
 	} else {
-		// Handles compound keywords (SUBJECT TO and SUCH THAT)
+		// Handles compound keywords (SUBJECT TO or SUCH THAT)
 		if lit == "SUBJECT" {
 			if tok, lit := p.scanIgnoreWhitespace(); tok != TOKEN_ST || lit != "TO" {
 				return nil, fmt.Errorf("found %q, expected TO ", lit)
@@ -134,7 +134,7 @@ func (p *Parser) Parse() (*LinearProblem, error) {
 			}
 
 			if tok == TOKEN_VARIABLE { // No explicit coefficient
-				cons.LH = append(cons.LH, Variable{lit, handleSign(sign)})
+				cons.LH = append(cons.LH, Variable{lit, handleSign(sign)}) // place 1 or -1 as coefficient
 			} else if tok == TOKEN_NUMBER { // Handle explicit coefficient
 				var temp Variable
 				if num, err := strconv.ParseFloat(sign+lit, 64); err == nil {
@@ -169,9 +169,17 @@ func (p *Parser) Parse() (*LinearProblem, error) {
 			return nil, fmt.Errorf("found constant %q instead of an operator", lit)
 		}
 
-		//Right hand side of the equation must be a constant
-		if tok, lit := p.scanIgnoreWhitespace(); tok == TOKEN_NUMBER {
-			if num, err := strconv.ParseFloat(lit, 64); err == nil {
+		//Right hand side of the equation must be a constant (sign is not mandatory)
+
+		var sign = "+"
+		tok, lit := p.scanIgnoreWhitespace()
+		if tok == TOKEN_SIGN_OPERATOR {
+			sign = lit
+			tok, lit = p.scanIgnoreWhitespace()
+		}
+
+		if tok == TOKEN_NUMBER {
+			if num, err := strconv.ParseFloat(sign+lit, 64); err == nil {
 				cons.RH = num
 			} else {
 				return nil, fmt.Errorf("Error converting %q to float", lit)
@@ -236,7 +244,7 @@ func handleSign(signal string) float64 {
 }
 
 // handleOFType returns the most concise alias (MIN/MAX) for an objective function type.
-func handleOFType(token string) string {
+func handleObjectiveFunctionType(token string) string {
 	if token == "MIN" || token == "MINIMIZE" || token == "MINIMISE" {
 		return "MIN"
 	}

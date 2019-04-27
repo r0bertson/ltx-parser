@@ -19,14 +19,4 @@ const (
 
 	TOKEN_VARIABLE
 	TOKEN_NUMBER
-
-	TOKEN_SECTION
-	TOKEN_KEY
-	TOKEN_VALUE
 )
-
-const RIGHT_PARENTHESIS string = ")"
-const EQUAL_SIGN string = "="
-const GREATER_THAN string = ">"
-const LESS_THAN string = "="
-const NEWLINE string = "\n"

@@ -20,10 +20,11 @@ func TestScanner_Scan(t *testing.T) {
 		{s: ` `, tok: ltxparser.TOKEN_WS, lit: " "},
 		{s: "\t", tok: ltxparser.TOKEN_WS, lit: "\t"},
 		{s: "\n", tok: ltxparser.TOKEN_WS, lit: "\n"},
+		{s: ")", tok: ltxparser.TOKEN_RIGHT_PARENTHESIS, lit: ")"},
 		// Operators characters
-		{s: `<`, tok: ltxparser.TOKEN_OPERATOR, lit: "<"},
+		{s: `<`, tok: ltxparser.TOKEN_OPERATOR, lit: "<="},
 		{s: `<=`, tok: ltxparser.TOKEN_OPERATOR, lit: "<="},
-		{s: `>`, tok: ltxparser.TOKEN_OPERATOR, lit: ">"},
+		{s: `>`, tok: ltxparser.TOKEN_OPERATOR, lit: ">="},
 		{s: `>=`, tok: ltxparser.TOKEN_OPERATOR, lit: ">="},
 		{s: `=`, tok: ltxparser.TOKEN_OPERATOR, lit: "="},
 		{s: `+`, tok: ltxparser.TOKEN_SIGN_OPERATOR, lit: "+"},
@@ -35,7 +36,9 @@ func TestScanner_Scan(t *testing.T) {
 		// Identifiers
 		{s: `foo`, tok: ltxparser.TOKEN_VARIABLE, lit: `foo`},
 		{s: `ZxU1234X`, tok: ltxparser.TOKEN_VARIABLE, lit: `ZxU1234X`},
-		{s: `ZxU1_234X`, tok: ltxparser.TOKEN_VARIABLE, lit: `ZxU1`},
+		{s: `Z12345678`, tok: ltxparser.TOKEN_ILLEGAL, lit: `Z12345678`},
+		{s: `Zx_234X`, tok: ltxparser.TOKEN_VARIABLE, lit: `Zx_234X`},
+		{s: `Zx#234X`, tok: ltxparser.TOKEN_VARIABLE, lit: `Zx#234X`},
 		{s: `X2`, tok: ltxparser.TOKEN_VARIABLE, lit: `X2`},
 		// Numbers
 		{s: `3`, tok: ltxparser.TOKEN_NUMBER, lit: `3`},
