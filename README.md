@@ -14,7 +14,11 @@ All of LINDO's syntax constraints are implemented in the parser, including:
 
 The parser currently only implements the essential and mandatory features of LINDO's syntax model (objective function and constraints). Optional features, such as FREE and SLB/SUB modelling statements, will be added in the future.
 
+<<<<<<< HEAD
 ##### Exemple of a linear problem written with LINDO's syntax:
+=======
+#####Exemple of a linear problem written with LINDO's syntax:
+>>>>>>> eda59d667d3976a437b32bde6be9662c8e235ac2
 ```
 MAX 10 X1 + 15 X2
 SUBJECT TO
